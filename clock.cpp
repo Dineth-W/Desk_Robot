@@ -4,16 +4,32 @@
 #include <WiFi.h>
 #include <time.h>
 
-// WiFi (Wokwi)
+// WiFi
 const char* ssid = "Wokwi-GUEST";
 const char* password = "";
 
 // NTP
 const char* ntpServer = "pool.ntp.org";
 
-// Sri Lanka (UTC +5:30)
+// Sri Lanka
 const long gmtOffset_sec = 19800;
 const int daylightOffset_sec = 0;
+
+// Previous values
+int prevHour = -1;
+int prevMinute = -1;
+int prevSecond = -1;
+
+// Character positions
+const int xHour = 35;
+const int xColon1 = 115;
+const int xMinute = 135;
+const int xColon2 = 215;
+const int xSecond = 235;
+
+const int yTime = 100;
+
+//--------------------------------------------------
 
 void clockInit()
 {
@@ -26,17 +42,61 @@ void clockInit()
     tft.setTextColor(ILI9341_WHITE);
     tft.println("Connecting WiFi...");
 
-    while (WiFi.status() != WL_CONNECTED)
+    while(WiFi.status()!=WL_CONNECTED)
     {
         delay(500);
     }
 
-    configTime(gmtOffset_sec,
-               daylightOffset_sec,
-               ntpServer);
+    configTime(
+        gmtOffset_sec,
+        daylightOffset_sec,
+        ntpServer);
 
     delay(500);
+
+    drawClock();
 }
+
+//--------------------------------------------------
+
+void drawTwoDigits(int value,int x)
+{
+    char txt[3];
+
+    sprintf(txt,"%02d",value);
+
+    tft.setTextColor(
+        ILI9341_CYAN,
+        ILI9341_BLACK);
+
+    tft.setTextSize(5);
+
+    tft.setCursor(x,yTime);
+
+    tft.print(txt);
+}
+
+//--------------------------------------------------
+
+void drawClock()
+{
+    tft.fillScreen(ILI9341_BLACK);
+
+    tft.setTextSize(5);
+    tft.setTextColor(ILI9341_CYAN);
+
+    tft.setCursor(xColon1,yTime);
+    tft.print(":");
+
+    tft.setCursor(xColon2,yTime);
+    tft.print(":");
+
+    prevHour = -1;
+    prevMinute = -1;
+    prevSecond = -1;
+}
+
+//--------------------------------------------------
 
 void updateClock()
 {
@@ -45,15 +105,30 @@ void updateClock()
     if(!getLocalTime(&timeinfo))
         return;
 
-    char buffer[20];
+    if(timeinfo.tm_hour != prevHour)
+    {
+        drawTwoDigits(
+            timeinfo.tm_hour,
+            xHour);
 
-    strftime(buffer,sizeof(buffer),"%H:%M:%S",&timeinfo);
+        prevHour = timeinfo.tm_hour;
+    }
 
-    tft.fillScreen(ILI9341_BLACK);
+    if(timeinfo.tm_min != prevMinute)
+    {
+        drawTwoDigits(
+            timeinfo.tm_min,
+            xMinute);
 
-    tft.setTextColor(ILI9341_CYAN);
-    tft.setTextSize(5);
+        prevMinute = timeinfo.tm_min;
+    }
 
-    tft.setCursor(25,100);
-    tft.println(buffer);
+    if(timeinfo.tm_sec != prevSecond)
+    {
+        drawTwoDigits(
+            timeinfo.tm_sec,
+            xSecond);
+
+        prevSecond = timeinfo.tm_sec;
+    }
 }
