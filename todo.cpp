@@ -1,110 +1,207 @@
 #include "todo.h"
 #include "display.h"
-#include "config.h"
+#include "clock.h"
+#include "screen.h"
 
-Task tasks[] =
-{
-    {"Study DSP",20,30,false,false},
-    {"Team Meeting",21,00,false,false},
-    {"Drink Water",21,15,false,false},
-    {"Go to Sleep",22,00,false,false}
-};
+Task tasks[MAX_TASKS];
+int taskCount = 0;
 
-const int taskCount = sizeof(tasks)/sizeof(tasks[0]);
+// Used by sketch.ino to automatically
+// return from reminder screen
+unsigned long reminderStartTime = 0;
 
+// Initialize
 void todoInit()
 {
-
+    addTask("Study DSP",20,30,PRIORITY_HIGH);
+    addTask("Drink Water",21,00,PRIORITY_LOW);
+    addTask("Project Meeting",21,30,PRIORITY_HIGH);
+    addTask("Sleep",22,30,PRIORITY_MEDIUM);
 }
 
-void showTodoList()
+// Add Task
+bool addTask(String title,
+             int hour,
+             int minute,
+             TaskPriority priority)
 {
+    if(taskCount >= MAX_TASKS)
+        return false;
 
-    tft.fillScreen(ILI9341_BLACK);
+    tasks[taskCount].title = title;
+    tasks[taskCount].hour = hour;
+    tasks[taskCount].minute = minute;
 
-    tft.setTextColor(ILI9341_YELLOW);
-    tft.setTextSize(3);
+    tasks[taskCount].enabled = true;
+    tasks[taskCount].completed = false;
+    tasks[taskCount].reminderShown = false;
 
-    tft.setCursor(50,10);
-    tft.println("TO-DO LIST");
+    tasks[taskCount].priority = priority;
 
-    tft.drawLine(0,45,320,45,ILI9341_WHITE);
+    taskCount++;
 
-    int y=60;
+    return true;
+}
+// Complete Task
+void completeTask(int index)
+{
+    if(index < 0 || index >= taskCount)
+        return;
+
+    tasks[index].completed = true;
+}
+
+// Remove Task
+void removeTask(int index)
+{
+    if(index < 0 || index >= taskCount)
+        return;
+
+    for(int i=index;i<taskCount-1;i++)
+    {
+        tasks[i] = tasks[i+1];
+    }
+
+    taskCount--;
+}
+
+// Get Task
+Task* getTask(int index)
+{
+    if(index < 0 || index >= taskCount)
+        return nullptr;
+
+    return &tasks[index];
+}
+
+// Draw Todo List
+void drawTodoList()
+{
+    clearScreen();
+
+    drawCenteredText(
+        "TO-DO LIST",
+        10,
+        ILI9341_YELLOW,
+        3);
+
+    int y = 50;
 
     for(int i=0;i<taskCount;i++)
     {
-
         tft.setCursor(10,y);
+        tft.setTextSize(2);
+
+        switch(tasks[i].priority)
+        {
+            case PRIORITY_LOW:
+                tft.setTextColor(ILI9341_GREEN);
+                break;
+
+            case PRIORITY_MEDIUM:
+                tft.setTextColor(ILI9341_YELLOW);
+                break;
+
+            case PRIORITY_HIGH:
+                tft.setTextColor(ILI9341_RED);
+                break;
+        }
 
         if(tasks[i].completed)
-        {
-            tft.setTextColor(ILI9341_GREEN);
             tft.print("[X] ");
-        }
         else
-        {
-            tft.setTextColor(ILI9341_WHITE);
             tft.print("[ ] ");
-        }
 
         tft.print(tasks[i].title);
 
-        y+=35;
+        char buffer[10];
 
+        sprintf(buffer,
+                " %02d:%02d",
+                tasks[i].hour,
+                tasks[i].minute);
+
+        tft.print(buffer);
+
+        y += 25;
     }
-
 }
 
-void reminderPopup(String taskName)
+// Reminder Screen
+void drawReminder(Task task)
 {
+    clearScreen();
 
-    tft.fillScreen(ILI9341_RED);
+    drawCenteredText(
+        "REMINDER",
+        35,
+        ILI9341_RED,
+        3);
 
-    tft.setTextColor(ILI9341_WHITE);
+    drawCenteredText(
+        task.title,
+        90,
+        ILI9341_WHITE,
+        2);
 
-    tft.setTextSize(3);
+    char buffer[10];
 
-    tft.setCursor(45,40);
-    tft.println("REMINDER");
+    sprintf(buffer,
+            "%02d:%02d",
+            task.hour,
+            task.minute);
 
-    tft.setTextSize(2);
+    drawCenteredText(
+        String(buffer),
+        135,
+        ILI9341_CYAN,
+        4);
 
-    tft.setCursor(20,110);
-    tft.println(taskName);
-
-    tft.setCursor(20,140);
-    tft.println("Starts in 10 min");
-
-    tone(BUZZER_PIN,1000);
-
-    delay(800);
-
-    noTone(BUZZER_PIN);
-
-    delay(3000);
-
+    drawCenteredText(
+        "Starts in 10 Minutes",
+        200,
+        ILI9341_GREEN,
+        2);
 }
 
+// Update Todo
 void updateTodo()
 {
-    struct tm timeinfo;
+    struct tm now;
 
-    if(!getLocalTime(&timeinfo))
+    if(!getLocalTime(&now))
         return;
 
-    int nowMinutes = timeinfo.tm_hour * 60 + timeinfo.tm_min;
+    int currentMinutes =
+        now.tm_hour * 60 +
+        now.tm_min;
 
-    for(int i = 0; i < taskCount; i++)
+    for(int i=0;i<taskCount;i++)
     {
-        int taskMinutes = tasks[i].hour * 60 + tasks[i].minute;
+        if(!tasks[i].enabled)
+            continue;
 
-        if(!tasks[i].reminded &&
-           nowMinutes == taskMinutes - 10)
+        if(tasks[i].completed)
+            continue;
+
+        int taskMinutes =
+            tasks[i].hour * 60 +
+            tasks[i].minute;
+
+        // Reminder (10 minutes before)
+        if(!tasks[i].reminderShown &&
+           currentMinutes == taskMinutes - 10)
         {
-            tasks[i].reminded = true;
+            tasks[i].reminderShown = true;
 
-            reminderPopup(tasks[i].title);
+            changeScreen(SCREEN_REMINDER);
+
+            drawReminder(tasks[i]);
+
+            reminderStartTime = millis();
+
+            Serial.print("Reminder: ");
+            Serial.println(tasks[i].title);
         }
     }
 }
