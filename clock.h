@@ -1,20 +1,14 @@
 #ifndef CLOCK_H
 #define CLOCK_H
 
-#include <Arduino.h>
+#include <time.h>
 
-// Initialization
-void clockInit();
+void clock_init(void);
 
-// Updates
-void updateClock();
+void update_clock(void);
 
-// Drawing
-void drawClock();
+void draw_clock(void);
 
-// Time Access
-bool getCurrentTime(struct tm *timeinfo);
-String getTimeString();
-String getDateString();
+struct tm get_current_time(void);
 
 #endif

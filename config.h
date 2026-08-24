@@ -1,62 +1,79 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
-//==================================================
-// TFT ILI9341 (SPI)
-//==================================================
-#define TFT_CS     5
-#define TFT_DC     2
-#define TFT_RST    4
+#include "driver/i2c.h"
 
-#define TFT_MOSI   23
-#define TFT_MISO   19
-#define TFT_SCK    18
+/* =========================================================
+ * OLED / I2C
+ * ========================================================= */
 
-//==================================================
-// Buttons
-//==================================================
-#define BTN_ANSWER 13
-#define BTN_REJECT 32
-#define BTN_MODE   34
-#define BTN_WAKE   35
+#define OLED_SDA        21
+#define OLED_SCL        22
 
-//==================================================
-// Buzzer
-//==================================================
-#define BUZZER_PIN 15
+#define OLED_WIDTH      128
+#define OLED_HEIGHT     64
 
-//==================================================
-// I2S Microphone (Future)
-//==================================================
-#define MIC_WS     25
-#define MIC_BCLK   26
-#define MIC_DATA   33
+#define OLED_ADDRESS    0x3C
+#define RTC_ADDRESS     0x68
 
-//==================================================
-// I2S Speaker (Future)
-//==================================================
-#define SPK_DIN    27
-#define SPK_BCLK   14
-#define SPK_LRC    12
+#define I2C_PORT        I2C_NUM_0
+#define I2C_FREQUENCY   100000
 
-//==================================================
-// Robot Timing
-//==================================================
-#define CLOCK_SCREEN_TIME   10000   // 10 seconds
-#define FACE_SCREEN_TIME     5000   // 5 seconds
-#define REMINDER_TIME         5000  // popup duration
-#define ALARM_TIME           10000
 
-//==================================================
-// WiFi
-//==================================================
-#define WIFI_SSID     "Wokwi-GUEST"
-#define WIFI_PASSWORD ""
+/* =========================================================
+ * BUTTONS
+ * ========================================================= */
 
-//==================================================
-// Time Zone (Sri Lanka)
-//==================================================
-#define GMT_OFFSET     19800
-#define DAYLIGHT_OFFSET 0
+#define BTN_1           32
+
+/*
+ * GPIO32 -> button -> GND
+ *
+ * Internal pull-up is used.
+ */
+
+
+/* =========================================================
+ * AUDIO
+ * ========================================================= */
+
+#define I2S_BCLK        25
+#define I2S_WS          26
+
+#define MIC_DATA        33
+#define SPEAKER_DATA    27
+
+
+/* =========================================================
+ * BUZZER
+ * ========================================================= */
+
+#define BUZZER_PIN      26
+#define BUZZER_FREQ     2000
+
+
+/* =========================================================
+ * DISPLAY TIMING
+ * ========================================================= */
+
+#define CLOCK_SCREEN_TIME       10000UL
+#define FACE_SCREEN_TIME         5000UL
+#define REMINDER_SCREEN_TIME     5000UL
+
+
+/* =========================================================
+ * ALARMS
+ * ========================================================= */
+
+#define MAX_ALARMS 10
+
+
+/* =========================================================
+ * CALL SIMULATION
+ * ========================================================= */
+
+#define CALL_RING_INTERVAL       600UL
+#define CALL_SIMULATION_INTERVAL 60000UL
+
 
 #endif

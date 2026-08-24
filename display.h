@@ -1,21 +1,56 @@
 #ifndef DISPLAY_H
 #define DISPLAY_H
 
-#include <Arduino.h>
-#include <SPI.h>
-#include <Adafruit_GFX.h>
-#include <Adafruit_ILI9341.h>
+#include "esp_err.h"
+#include "ssd1306.h"
 
-extern Adafruit_ILI9341 tft;
+extern ssd1306_handle_t oled;
 
-// Initialization
-void displayInit();
 
-// Common screen functions
-void clearScreen();
-void drawSplash();
+/* =========================================================
+ * INITIALIZATION
+ * ========================================================= */
 
-// Utility functions
-void drawCenteredText(String text, int y, uint16_t color, uint8_t size);
+esp_err_t display_init(void);
+
+
+/* =========================================================
+ * BASIC DISPLAY
+ * ========================================================= */
+
+void display_clear(void);
+void display_refresh(void);
+
+
+/* =========================================================
+ * TEXT
+ * ========================================================= */
+
+void display_text(
+    int x,
+    int y,
+    const char *text,
+    int size
+);
+
+void display_center_text(
+    const char *text,
+    int y,
+    int size
+);
+
+
+/* =========================================================
+ * SCREENS
+ * ========================================================= */
+
+void display_show_test(void);
+void display_show_splash(void);
+
+void display_show_clock(
+    const char *time_string,
+    const char *date_string
+);
+
 
 #endif

@@ -1,10 +1,7 @@
 #ifndef FACE_H
 #define FACE_H
 
-#include <Arduino.h>
-
-// Face Expressions
-enum FaceExpression
+typedef enum
 {
     FACE_NORMAL,
     FACE_HAPPY,
@@ -12,18 +9,21 @@ enum FaceExpression
     FACE_SLEEP,
     FACE_SURPRISED,
     FACE_TALKING
-};
 
-// Initialization
-void faceInit();
+} FaceExpression;
 
-// Updates
-void updateFace();
 
-// Drawing
-void drawFace();
+void face_init(void);
 
-// Expression Control
-void setExpression(FaceExpression expression);
-FaceExpression getExpression();
+void update_face(void);
+
+void draw_face(void);
+
+void set_expression(
+    FaceExpression expression
+);
+
+FaceExpression get_expression(void);
+
+
 #endif
