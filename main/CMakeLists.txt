@@ -1,0 +1,37 @@
+idf_component_register(
+    SRCS 
+        "main.c"
+        "config.c"
+        "display.c"
+        "rtc.c"
+        "clock.c"
+        "alarm.c"
+        "audio.c"
+        "buzzer.c"
+        "todo.c"
+        "buttons.c"
+        "face.c"
+        "i2c_bus.c"
+        "call/call.c"
+        "hfp/hfp.c"
+        "bluetooth/bluetooth.c"
+        "buttons/call_buttons.c"
+        "display/call_display.c"
+        "call_audio/call_audio.c"
+    INCLUDE_DIRS 
+        "."
+        "call"
+        "hfp"
+        "bluetooth"
+        "buttons"
+        "display"
+        "call_audio"
+    REQUIRES 
+        bt
+        nvs_flash
+        driver
+        freertos
+        esp_timer
+        esp_hw_support
+        esp_system
+)
