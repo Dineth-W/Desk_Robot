@@ -31,6 +31,13 @@
 #include "bt_app_pbac.h"
 #include "hfp_audio.h"
 #include "call_buttons.h"
+//#include "buttons/call_buttons.h"
+#include "config.h"
+#include "i2c_bus.h"
+#include "display.h"
+#include "rtc.h"
+#include "face.h"
+#include "call_display.h"
 
 #define HF_INQUIRY_LEN 30
 
@@ -215,6 +222,52 @@ enum {
 /* handler for bluetooth stack enabled events */
 static void bt_hf_client_hdl_stack_evt(uint16_t event, void *p_param);
 
+static void clock_display_task(void *arg)
+{
+    (void)arg;
+
+    struct tm t;
+    char time_str[16];
+    char date_str[20];
+
+    const char *months[] = {
+        "JAN", "FEB", "MAR", "APR",
+        "MAY", "JUN", "JUL", "AUG",
+        "SEP", "OCT", "NOV", "DEC"
+    };
+
+    while (true) {
+
+        if (ds3231_read(&t)) {
+
+            snprintf(time_str, sizeof(time_str),
+                     "%02d:%02d:%02d",
+                     t.tm_hour,
+                     t.tm_min,
+                     t.tm_sec);
+
+            snprintf(date_str, sizeof(date_str),
+                     "%02d %s %04d",
+                     t.tm_mday,
+                     months[t.tm_mon],
+                     t.tm_year + 1900);
+
+            display_clear();
+
+            display_center_text(time_str, 8, 2, true);
+            display_center_text(date_str, 42, 1, true);
+
+            display_update();
+
+        } else {
+            ESP_LOGW("CLOCK", "Failed to read DS3231");
+        }
+
+        vTaskDelay(pdMS_TO_TICKS(1000));
+    }
+}
+
+
 void app_main(void)
 {
     char bda_str[18] = {0};
@@ -225,8 +278,26 @@ void app_main(void)
         ret = nvs_flash_init();
     }
     ESP_ERROR_CHECK( ret );
-
     /* Initialize I2S microphone/speaker bridge before HFP audio can start. */
+    ESP_ERROR_CHECK(i2c_bus_init());
+    ESP_ERROR_CHECK(ds3231_init());
+    // ESP_ERROR_CHECK(ds3231_set_datetime(2026,8,29,02,16,0));
+    ESP_ERROR_CHECK(display_init());
+
+    face_init();
+    call_display_init();
+
+    xTaskCreate(
+    clock_display_task,
+    "clock_display",
+    4096,
+    NULL,
+    5,
+    NULL
+    );
+
+    //display_init();
+
     ESP_ERROR_CHECK(hfp_audio_init());
     ESP_ERROR_CHECK(call_buttons_init());
 
