@@ -30,6 +30,7 @@
 #include "app_hf_msg_set.h"
 #include "bt_app_pbac.h"
 #include "hfp_audio.h"
+#include "call_buttons.h"
 
 #define HF_INQUIRY_LEN 30
 
@@ -227,6 +228,7 @@ void app_main(void)
 
     /* Initialize I2S microphone/speaker bridge before HFP audio can start. */
     ESP_ERROR_CHECK(hfp_audio_init());
+    ESP_ERROR_CHECK(call_buttons_init());
 
     ESP_ERROR_CHECK(esp_bt_controller_mem_release(ESP_BT_MODE_BLE));
 
