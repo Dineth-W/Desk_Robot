@@ -63,8 +63,8 @@ static esp_err_t data(const uint8_t *d, size_t n)
 
 static void glyph(int x, int y, char ch, int scale)
 {
-    if (ch < 32 || ch > 127) ch = '?';
-    const uint8_t *g = font5x7[(unsigned char)ch - 32];
+    if (ch < 32 || ch > 95) ch = '?';
+    const uint8_t *g = font5x7[(unsigned char)ch];
     for (int col = 0; col < 5; col++) {
         for (int row = 0; row < 7; row++) {
             if (g[col] & (1u << row)) {

@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <inttypes.h>
+#include "call_display.h"
 
 #include "esp_log.h"
 
@@ -198,6 +199,7 @@ const char *c_inband_ring_state_str[] = {
 
 extern esp_bd_addr_t peer_addr;
 extern bool hf_client_connected;
+static bool s_call_ui_active = false;
 
 
 /* ============================================================
@@ -207,6 +209,7 @@ extern bool hf_client_connected;
 #if CONFIG_BT_HFP_AUDIO_DATA_PATH_HCI
 
 #if CONFIG_BT_HFP_USE_EXTERNAL_CODEC
+
 
 static esp_hf_sync_conn_hdl_t s_sync_conn_hdl;
 static bool s_msbc_air_mode = false;
@@ -541,38 +544,42 @@ void bt_app_hf_client_cb(
 
             }
             else if (
-                param->audio_stat.state ==
-                ESP_HF_CLIENT_AUDIO_STATE_DISCONNECTED) {
+    param->audio_stat.state ==
+    ESP_HF_CLIENT_AUDIO_STATE_DISCONNECTED) {
 
-                s_sync_conn_hdl = 0;
-                s_msbc_air_mode = false;
+    /*
+     * Stop application audio immediately.
+     */
+    hfp_audio_stop();
 
-                if (s_audio_buff_queue) {
+    s_sync_conn_hdl = 0;
+    s_msbc_air_mode = false;
 
-                    esp_hf_audio_buff_t *buff_to_free =
-                        NULL;
+    if (s_audio_buff_queue) {
 
-                    while (
-                        xQueueReceive(
-                            s_audio_buff_queue,
-                            &buff_to_free,
-                            0
-                        )
-                    ) {
-                        esp_hf_client_audio_buff_free(
-                            buff_to_free
-                        );
-                    }
+        esp_hf_audio_buff_t *buff_to_free = NULL;
 
-                    vQueueDelete(
-                        s_audio_buff_queue
-                    );
+        while (
+            xQueueReceive(
+                s_audio_buff_queue,
+                &buff_to_free,
+                0
+            )
+        ) {
+            esp_hf_client_audio_buff_free(
+                buff_to_free
+            );
+        }
 
-                    s_audio_buff_queue = NULL;
-                }
+        vQueueDelete(
+            s_audio_buff_queue
+        );
 
-                s_audio_buff_cnt = 0;
-            }
+        s_audio_buff_queue = NULL;
+    }
+
+    s_audio_buff_cnt = 0;
+}
 
 #else
 
@@ -609,21 +616,48 @@ void bt_app_hf_client_cb(
          * CALL STATUS
          * ==================================================== */
 
-        case ESP_HF_CLIENT_CIND_CALL_EVT:
+case ESP_HF_CLIENT_CIND_CALL_EVT:
 {
-    ESP_LOGI(BT_HF_TAG,
-             "--Call indicator %s",
-             c_call_str[param->call.status]);
+    ESP_LOGI(
+        BT_HF_TAG,
+        "--Call indicator %s",
+        c_call_str[param->call.status]
+    );
 
-    if (param->call.status == ESP_HF_CALL_STATUS_CALL_IN_PROGRESS) {
-        ESP_LOGI(BT_HF_TAG, "CALL ACTIVE");
+    if (param->call.status ==
+        ESP_HF_CALL_STATUS_CALL_IN_PROGRESS) {
+
+        ESP_LOGI(
+            BT_HF_TAG,
+            "CALL ACTIVE"
+        );
+
+        /*
+         * We may already have the incoming-call UI active.
+         * Always switch the display to ACTIVE when the
+         * Bluetooth call state becomes IN_PROGRESS.
+         */
+        s_call_ui_active = true;
+
+        call_display_active("Unknown");
+
     } else {
-        ESP_LOGI(BT_HF_TAG, "NO ACTIVE CALL");
+
+        ESP_LOGI(
+            BT_HF_TAG,
+            "NO ACTIVE CALL"
+        );
+
+        if (s_call_ui_active) {
+
+            call_display_ended();
+
+            s_call_ui_active = false;
+        }
     }
 
     break;
 }
-
 
         /* ====================================================
          * CALL SETUP
@@ -631,19 +665,33 @@ void bt_app_hf_client_cb(
 
        case ESP_HF_CLIENT_CIND_CALL_SETUP_EVT:
 {
-    ESP_LOGI(BT_HF_TAG,
-             "--Call setup indicator %s",
-             c_call_setup_str[param->call_setup.status]);
+    ESP_LOGI(
+        BT_HF_TAG,
+        "--Call setup indicator %s",
+        c_call_setup_str[param->call_setup.status]
+    );
 
     if (param->call_setup.status ==
         ESP_HF_CALL_SETUP_STATUS_INCOMING) {
 
-        ESP_LOGI(BT_HF_TAG, "INCOMING CALL");
+        ESP_LOGI(
+            BT_HF_TAG,
+            "INCOMING CALL"
+        );
 
-    } else if (param->call_setup.status ==
-               ESP_HF_CALL_SETUP_STATUS_IDLE) {
+        s_call_ui_active = true;
 
-        ESP_LOGI(BT_HF_TAG, "CALL SETUP ENDED");
+        call_display_incoming("Unknown");
+
+    }
+    else if (
+        param->call_setup.status ==
+        ESP_HF_CALL_SETUP_STATUS_IDLE) {
+
+        ESP_LOGI(
+            BT_HF_TAG,
+            "CALL SETUP ENDED"
+        );
     }
 
     break;

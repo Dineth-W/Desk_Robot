@@ -344,68 +344,27 @@ void hfp_audio_start(void)
 void hfp_audio_stop(void)
 {
     /*
-     * Stop accepting HFP audio immediately.
+     * First stop all application-level audio processing.
+     * Bluetooth callbacks will now immediately reject audio.
      */
     s_audio_active = false;
 
     /*
-     * Stop I2S TX first so the MAX98357A cannot continue
-     * playing data that is already sitting in the DMA buffer.
-     */
-    if (s_i2s_tx) {
-        esp_err_t err = i2s_channel_disable(s_i2s_tx);
-
-        if (err != ESP_OK) {
-            ESP_LOGW(TAG,
-                     "I2S TX disable failed: %s",
-                     esp_err_to_name(err));
-        }
-    }
-
-    /*
-     * Stop microphone RX as well.
-     */
-    if (s_i2s_rx) {
-        esp_err_t err = i2s_channel_disable(s_i2s_rx);
-
-        if (err != ESP_OK) {
-            ESP_LOGW(TAG,
-                     "I2S RX disable failed: %s",
-                     esp_err_to_name(err));
-        }
-    }
-
-    /*
-     * Clear any HFP audio that arrived just before the
-     * Bluetooth SCO connection disappeared.
+     * Clear pending PCM data.
      */
     drain_ringbuffer(s_hfp_to_speaker);
     drain_ringbuffer(s_microphone_to_hfp);
 
     /*
-     * Re-enable the channels for the next call.
-     * We keep the I2S hardware initialized; we only stop
-     * the channels between calls.
+     * IMPORTANT:
+     * Do NOT disable/re-enable I2S here.
+     *
+     * The I2S hardware remains initialized and enabled.
+     * We only use s_audio_active to stop the application
+     * from processing HFP audio between calls.
+     *
+     * This avoids racing with the Bluetooth SCO teardown.
      */
-    if (s_i2s_tx) {
-        esp_err_t err = i2s_channel_enable(s_i2s_tx);
-
-        if (err != ESP_OK) {
-            ESP_LOGW(TAG,
-                     "I2S TX re-enable failed: %s",
-                     esp_err_to_name(err));
-        }
-    }
-
-    if (s_i2s_rx) {
-        esp_err_t err = i2s_channel_enable(s_i2s_rx);
-
-        if (err != ESP_OK) {
-            ESP_LOGW(TAG,
-                     "I2S RX re-enable failed: %s",
-                     esp_err_to_name(err));
-        }
-    }
 
     ESP_LOGI(TAG, "HFP PCM audio INACTIVE");
 }

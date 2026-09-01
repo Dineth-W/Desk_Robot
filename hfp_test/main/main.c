@@ -38,6 +38,9 @@
 #include "rtc.h"
 #include "face.h"
 #include "call_display.h"
+#include "esp_log.h"
+#include "esp_timer.h"
+#include "freertos/semphr.h"
 
 #define HF_INQUIRY_LEN 30
 
@@ -236,37 +239,190 @@ static void clock_display_task(void *arg)
         "SEP", "OCT", "NOV", "DEC"
     };
 
-    while (true) {
+    /*
+     * ============================================
+     * STARTUP FACE
+     * ============================================
+     */
 
-        if (ds3231_read(&t)) {
+    face_set(FACE_HAPPY);
 
-            snprintf(time_str, sizeof(time_str),
-                     "%02d:%02d:%02d",
-                     t.tm_hour,
-                     t.tm_min,
-                     t.tm_sec);
+    int64_t startup_start =
+        esp_timer_get_time() / 1000;
 
-            snprintf(date_str, sizeof(date_str),
-                     "%02d %s %04d",
-                     t.tm_mday,
-                     months[t.tm_mon],
-                     t.tm_year + 1900);
+    while (
+        (esp_timer_get_time() / 1000) -
+        startup_start < 5000
+    ) {
 
-            display_clear();
+        /*
+         * A call has priority even during startup.
+         */
+        if (call_display_is_active()) {
+            call_display_update();
 
-            display_center_text(time_str, 8, 2, true);
-            display_center_text(date_str, 42, 1, true);
+            vTaskDelay(
+                pdMS_TO_TICKS(50)
+            );
 
-            display_update();
-
-        } else {
-            ESP_LOGW("CLOCK", "Failed to read DS3231");
+            continue;
         }
 
-        vTaskDelay(pdMS_TO_TICKS(1000));
+        face_update();
+
+        vTaskDelay(
+            pdMS_TO_TICKS(100)
+        );
+    }
+
+
+    /*
+     * ============================================
+     * NORMAL DISPLAY LOOP
+     * ============================================
+     */
+
+    while (true) {
+
+        /*
+         * ========================================
+         * CALL HAS HIGHEST PRIORITY
+         * ========================================
+         */
+
+        if (call_display_is_active()) {
+
+            call_display_update();
+
+            vTaskDelay(
+                pdMS_TO_TICKS(50)
+            );
+
+            continue;
+        }
+
+
+        /*
+         * ========================================
+         * CLOCK — 5 SECONDS
+         * ========================================
+         */
+
+        int64_t clock_start =
+            esp_timer_get_time() / 1000;
+
+        while (
+            (esp_timer_get_time() / 1000) -
+            clock_start < 5000
+        ) {
+
+            /*
+             * Immediately abandon clock if
+             * a call arrives.
+             */
+            if (call_display_is_active()) {
+                break;
+            }
+
+            if (ds3231_read(&t)) {
+
+                snprintf(
+                    time_str,
+                    sizeof(time_str),
+                    "%02d:%02d:%02d",
+                    t.tm_hour,
+                    t.tm_min,
+                    t.tm_sec
+                );
+
+                snprintf(
+                    date_str,
+                    sizeof(date_str),
+                    "%02d %s %04d",
+                    t.tm_mday,
+                    months[t.tm_mon],
+                    t.tm_year + 1900
+                );
+
+                display_clear();
+
+                display_center_text(
+                    time_str,
+                    8,
+                    2,
+                    true
+                );
+
+                display_center_text(
+                    date_str,
+                    42,
+                    1,
+                    true
+                );
+
+                display_update();
+
+            } else {
+
+                ESP_LOGW(
+                    "CLOCK",
+                    "Failed to read DS3231"
+                );
+            }
+
+            /*
+             * Short delay means a call can interrupt
+             * the clock quickly.
+             */
+            vTaskDelay(
+                pdMS_TO_TICKS(100)
+            );
+        }
+
+
+        /*
+         * ========================================
+         * If call arrived during clock
+         * ========================================
+         */
+
+        if (call_display_is_active()) {
+            continue;
+        }
+
+
+        /*
+         * ========================================
+         * FACE — 6 SECONDS
+         * ========================================
+         */
+
+        face_set(FACE_NORMAL);
+
+        int64_t face_start =
+            esp_timer_get_time() / 1000;
+
+        while (
+            (esp_timer_get_time() / 1000) -
+            face_start < 6000
+        ) {
+
+            /*
+             * Immediately abandon face when
+             * a call arrives.
+             */
+            if (call_display_is_active()) {
+                break;
+            }
+
+            face_update();
+
+            vTaskDelay(
+                pdMS_TO_TICKS(100)
+            );
+        }
     }
 }
-
 
 void app_main(void)
 {
@@ -281,7 +437,7 @@ void app_main(void)
     /* Initialize I2S microphone/speaker bridge before HFP audio can start. */
     ESP_ERROR_CHECK(i2c_bus_init());
     ESP_ERROR_CHECK(ds3231_init());
-    // ESP_ERROR_CHECK(ds3231_set_datetime(2026,8,29,02,16,0));
+    //ESP_ERROR_CHECK(ds3231_set_datetime(2026,8,31,18,16,0));
     ESP_ERROR_CHECK(display_init());
 
     face_init();
