@@ -8,7 +8,7 @@ An ESP32-based desk robot with an OLED display, real-time clock, Bluetooth Hands
 
 | Component | Purpose |
 |---|---|
-| ESP32-WROOM-32 | Main microcontroller and Bluetooth HFP device |
+| ESP32 | Main microcontroller and Bluetooth HFP device |
 | SSD1306 128×64 OLED | User interface and status display |
 | DS3231 RTC | Real-time clock |
 | INMP441 | Digital I²S microphone |
